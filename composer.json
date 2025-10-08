@@ -1,19 +1,17 @@
 {
-	 "minimum-stability": "dev",
-	 "prefer-stable": true,
-    "repositories": [
-        {
-	        "name": "fivefilters/readability.php",
-	        "type": "vcs",
-	        "url": "https://github.com/tt-rss/tt-rss-readability-php.git"
-        },
-        {
-	        "name": "masterminds/html5",
-	        "type": "vcs",
-	        "url": "https://github.com/tt-rss/tt-rss-html5-php.git"
-        }
-    ],
-    "require": {
-        "fivefilters/readability.php": "dev-main"
-    }
+	"minimum-stability": "dev",
+	"prefer-stable": true,
+    "repositories": [],
+	"require": {
+		"php": ">=8.2",
+		"ext-curl": "*",
+		"ext-tidy": "*",
+		"j0k3r/graby": "dev-master",
+		"php-http/guzzle7-adapter": "^1.1"
+	},
+	"config": {
+		"allow-plugins": {
+			"php-http/discovery": true
+		}
+	}
 }

@@ -1,8 +1,7 @@
 <?php
 require_once __DIR__ . "/vendor/autoload.php";
 
-use \fivefilters\Readability\Readability;
-use \fivefilters\Readability\Configuration;
+use Graby\Graby;
 
 class Af_Readability extends Plugin {
 
@@ -198,68 +197,15 @@ class Af_Readability extends Plugin {
 	 */
 	public function extract_content(string $url) {
 
-		$tmp = UrlHelper::fetch([
-			"url" => $url,
-			"http_accept" => "text/*",
-			"type" => "text/html"]);
+        try {
+            $graby = new Graby();
+            $result = $graby->fetchContent($url);
+        }
+        catch(\Throwable $t) {
+            return false;
+        }
 
-		if ($tmp && mb_strlen($tmp) < 1024 * 500) {
-			$tmpdoc = new DOMDocument("1.0", "UTF-8");
-
-			if (!@$tmpdoc->loadHTML('<?xml encoding="UTF-8">' . $tmp))
-				return false;
-
-			// this is the worst hack yet :(
-			if (strtolower($tmpdoc->encoding) != 'utf-8') {
-				$tmp = preg_replace("/<meta.*?charset.*?\/?>/i", "", $tmp);
-				if (empty($tmpdoc->encoding)) {
-					$tmp = mb_convert_encoding($tmp, 'utf-8');
-				} else {
-					$tmp = mb_convert_encoding($tmp, 'utf-8', $tmpdoc->encoding);
-				}
-			}
-
-			try {
-
-				$r = new Readability(new Configuration([
-					'FixRelativeURLs'      => true,
-					'OriginalURL'          => $url,
-					'ExtraIgnoredElements' => ['template'],
-				]));
-
-				if ($r->parse($tmp)) {
-
-					$tmpxpath = new DOMXPath($r->getDOMDOcument());
-					$entries = $tmpxpath->query('(//a[@href]|//img[@src])');
-
-					foreach ($entries as $entry) {
-						if ($entry->hasAttribute("href")) {
-							$entry->setAttribute("href",
-									UrlHelper::rewrite_relative(UrlHelper::$fetch_effective_url, $entry->getAttribute("href")));
-
-						}
-
-						if ($entry->hasAttribute("src")) {
-							if ($entry->hasAttribute("data-src")) {
-								$src = $entry->getAttribute("data-src");
-							} else {
-								$src = $entry->getAttribute("src");
-							}
-							$entry->setAttribute("src",
-								UrlHelper::rewrite_relative(UrlHelper::$fetch_effective_url, $src));
-
-						}
-					}
-
-					return $r->getContent();
-				}
-
-			} catch (Exception $e) {
-				return false;
-			}
-		}
-
-		return false;
+        return $result->getHtml();
 	}
 
 	/**
