@@ -1,7 +1,9 @@
 <?php
 require_once __DIR__ . "/vendor/autoload.php";
 
+use Graby\Content;
 use Graby\Graby;
+use GuzzleHttp\Psr7\MimeType;
 
 class Af_Readability extends Plugin {
 
@@ -195,7 +197,7 @@ class Af_Readability extends Plugin {
 	 * @param string $url
 	 * @return string|false
 	 */
-	public function extract_content(string $url) {
+	private function extract_content(string $url): bool|Content {
 
         try {
             $graby = new Graby();
@@ -205,7 +207,7 @@ class Af_Readability extends Plugin {
             return false;
         }
 
-        return $result->getHtml();
+        return $result;
 	}
 
 	/**
@@ -218,14 +220,27 @@ class Af_Readability extends Plugin {
 
 		$extracted_content = $this->extract_content($article["link"]);
 
-		# let's see if there's anything of value in there
-		$content_test = trim(strip_tags(Sanitizer::sanitize($extracted_content)));
+        if ($extracted_content instanceof Content) {
+			if ($append_mode) {
+                $article["content"] .= "<hr/>" . $extracted_content->getHtml();
+            }
+			else {
+                $article["content"] = $extracted_content->getHtml();
+            }
 
-		if ($content_test) {
-			if ($append_mode)
-				$article["content"] .= "<hr/>" . $extracted_content;
-			else
-				$article["content"] = $extracted_content;
+            $image = $extracted_content->getImage();
+
+            if(empty($article['enclosures']) && !empty($image)) {
+                $ext = strtolower(pathinfo(parse_url($image, PHP_URL_PATH), PATHINFO_EXTENSION));
+                $mimeType = MimeType::fromExtension($ext);
+
+                if(!empty($mimeType)) {
+                    $enc = new FeedEnclosure();
+                    $enc->type = $mimeType;
+                    $enc->link = $image;
+                    $article['enclosures'] = [$enc];
+                }
+            }
 		}
 
 		return $article;
@@ -259,7 +274,7 @@ class Af_Readability extends Plugin {
 		$enable_share_anything = $this->host->get($this, "enable_share_anything");
 
 		if ($enable_share_anything) {
-			$extracted_content = $this->extract_content($link);
+			$extracted_content = $this->extract_content($link)?->getHtml();
 
 			# let's see if there's anything of value in there
 			$content_test = trim(strip_tags(Sanitizer::sanitize($extracted_content)));
@@ -306,7 +321,7 @@ class Af_Readability extends Plugin {
 		$ret = [];
 
 		if ($row = $sth->fetch()) {
-			$ret["content"] = Sanitizer::sanitize($this->extract_content($row["link"]));
+			$ret["content"] = Sanitizer::sanitize($this->extract_content($row["link"])?->getHtml());
 		}
 
 		print json_encode($ret);
